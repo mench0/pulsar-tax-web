@@ -1,67 +1,91 @@
-# Pulsar Tax — веб-интерфейс
+# Pulsar Tax — приложение
 
-Фронтенд помощника ИП в Армении. API живёт в отдельном репозитории
-[mench0/pulsar-tax](https://github.com/mench0/pulsar-tax).
+Помощник ИП в Армении: доходы, налог, сроки, отчёт и счета. **Веб, Android и iOS из одного кода на Flutter.**
+API (Java) — в репозитории [mench0/pulsar-tax](https://github.com/mench0/pulsar-tax).
 
-Без сборки и зависимостей: статические файлы, ES-модули, работает в любом современном браузере.
 Языки: армянский, русский, английский.
 
-## Файлы
+## Что умеет
+
+- Вход и регистрация. В вебе сессия — в cookie `HttpOnly`, на телефоне — токен в защищённом хранилище
+  (Keychain на iOS, Keystore на Android).
+- Обзор: доход, налог, остаток к уплате, порог режима, кварталы, сроки, предупреждения.
+- Доходы, в том числе в валюте по курсу.
+- Загрузка банковской выписки CSV: колонки, формат даты, разделитель и кодировка определяются сами;
+  поступления, списания, свои переводы и возвраты размечаются; повторная загрузка не создаёт дублей.
+- Отчёт и уплата: цифры за квартал или год, шаги подачи в file-online, учёт уплаченного налога.
+- Счета на оплату с номером e-invoice, PDF для печати или отправки.
+- Настройки: профиль, проверка режима по виду деятельности, календарь сроков, Telegram, пароль, экспорт.
+
+## Устройство
 
 ```
-index.html    каркас страницы
-app.js        экраны: вход, обзор, доходы, загрузка выписки, отчёт и уплата, счета, настройки
-i18n.js       тексты на армянском, русском и английском
-config.js     адрес API
-styles.css    стили, светлая и тёмная тема, печать счёта
-favicon.svg
-tests/        сквозная проверка в браузере (Playwright)
+lib/
+  main.dart                  запуск, тема, выбор экрана
+  core/
+    api.dart                 клиент API: cookie в вебе, Bearer-токен на телефоне
+    app_state.dart           пользователь, язык, год, вкладка
+    csv_import.dart          разбор выписок (без Flutter, проверяется обычными тестами)
+    i18n.dart, format.dart   тексты и форматирование
+    config.dart              адрес API
+  ui/                        экраны: вход, обзор, доходы, импорт, отчёт, счета, настройки, PDF
+assets/
+  i18n/{hy,ru,en}.json       тексты
+  fonts/                     Noto Sans и Noto Sans Armenian (OFL): интерфейс и PDF без загрузки шрифтов из сети
+test/                        тесты разбора выписок, переводов и всего приложения против настоящего API
 ```
 
 ## Запуск для разработки
 
-1. Запустите API (в репозитории pulsar-tax):
-
-   ```bash
-   ./build.sh && java -jar build/pulsar-tax.jar     # http://127.0.0.1:8080
-   ```
-
-2. Раздайте эту папку любым статическим сервером:
-
-   ```bash
-   python3 -m http.server 5500 --bind 127.0.0.1    # http://127.0.0.1:5500
-   ```
-
-Пока API слушает только 127.0.0.1, он принимает запросы с любого локального адреса, поэтому
-для разработки ничего настраивать не нужно.
-
-## Развёртывание
-
-Укажите адрес API в `config.js` и настройте API под адрес фронтенда:
-
-| Схема | `config.js` | Переменные API |
-|---|---|---|
-| Поддомены одного сайта: `app.pulsar.am` и `api.pulsar.am` (рекомендуется) | `'https://api.pulsar.am'` | `PULSAR_ALLOWED_ORIGINS=https://app.pulsar.am`, `PULSAR_SECURE_COOKIE=1` |
-| Один адрес, прокси отдаёт `/api` и `/cal` в API | `''` | `PULSAR_SECURE_COOKIE=1` |
-| Разные домены, например фронтенд на Vercel или Netlify | `'https://api.example.com'` | `PULSAR_ALLOWED_ORIGINS=https://pulsar-tax-web.vercel.app`, `PULSAR_SECURE_COOKIE=1`, `PULSAR_COOKIE_SAMESITE=None` |
-
-Для разных доменов нужен HTTPS. Учтите, что браузеры всё строже ограничивают сторонние cookie,
-поэтому первые два варианта надёжнее.
-
-## Сквозная проверка
-
-Нужны Node.js и Playwright (`npm i -g playwright`, затем `npx playwright install chromium`).
-При запущенных API (на чистой папке данных) и фронтенде:
+Нужны Flutter (stable) и запущенный API:
 
 ```bash
-WEB_URL=http://127.0.0.1:5500/ node tests/e2e.cjs
+# в репозитории pulsar-tax
+./pulsar/build.sh && java -jar pulsar/build/pulsar-tax.jar      # http://127.0.0.1:8080
+
+# здесь
+flutter pub get
+flutter run -d chrome                  # веб
+flutter run -d <android-эмулятор>      # Android: API доступен как http://10.0.2.2:8080
+flutter run -d <iOS-симулятор>         # iOS (нужен Mac с Xcode)
 ```
 
-Тест проходит регистрацию, профиль, доход в валюте, импорт выписки (`tests/statement.csv`) и повторный
-импорт без дублей, отчёт и уплату, счёт с номером e-invoice, армянский язык, вёрстку на телефоне и
-повторный вход. Скриншоты сохраняются в `tests/screenshots/`.
+Адрес API по умолчанию — `http://127.0.0.1:8080` (в эмуляторе Android — `http://10.0.2.2:8080`).
+Для другого адреса: `--dart-define=API_BASE=https://api.pulsar.am`.
+Обычный http разрешён только в отладочной сборке Android и для локальной сети на iOS;
+в рабочих сборках API должен быть на HTTPS.
 
-## Переводы
+## Сборка
 
-Армянский перевод сделан без носителя языка — его нужно вычитать. Все тексты лежат в `i18n.js`,
-ключи во всех трёх языках совпадают.
+```bash
+flutter build web --release --no-web-resources-cdn --dart-define=API_BASE=https://api.pulsar.am
+flutter build apk --release --dart-define=API_BASE=https://api.pulsar.am        # или appbundle для Google Play
+flutter build ipa --release --dart-define=API_BASE=https://api.pulsar.am        # на Mac, нужна подпись Apple
+```
+
+`--no-web-resources-cdn` кладёт движок отрисовки (CanvasKit) рядом с приложением, чтобы веб-версия
+не зависела от CDN Google.
+
+Для веба API должен разрешать адрес приложения: `PULSAR_ALLOWED_ORIGINS=https://app.pulsar.am`
+(схемы размещения — в README API). Телефонным приложениям CORS не нужен.
+
+## Тесты
+
+```bash
+flutter analyze
+flutter test                                    # все тесты
+PULSAR_JAR=/путь/к/pulsar-tax.jar flutter test  # если API лежит не в ../pulsar-tax
+```
+
+`test/app_flow_test.dart` запускает настоящий API и проходит путь пользователя на экране телефона и на
+широком экране: регистрация, профиль и проверка режима, доход, импорт выписки, отчёт и уплата, счёт с
+e-invoice, смена языка, выход и вход. Без jar API тест пропускается.
+
+CI (GitHub Actions) прогоняет анализ и тесты, собирает веб, APK для Android и iOS без подписи.
+
+## Перед публикацией в магазинах
+
+- Иконка и экран запуска — сейчас стандартные Flutter.
+- Идентификатор приложения `am.pulsar.pulsar_tax` — проверить и закрепить до первой публикации.
+- Подпись: ключ для Google Play, сертификаты и профиль Apple Developer.
+- Армянский перевод — вычитать носителем языка.
