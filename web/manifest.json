@@ -1,0 +1,35 @@
+{
+    "name": "Pulsar Tax",
+    "short_name": "Pulsar Tax",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F4F2EC",
+    "theme_color": "#141B2D",
+    "description": "Помощник ИП в Армении: доходы, налог, сроки и счета",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
