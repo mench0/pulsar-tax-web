@@ -1,0 +1,6 @@
+tests/screenshots/
+tests/fail-*.png
+node_modules/
+.DS_Store
+.idea/
+.vscode/
