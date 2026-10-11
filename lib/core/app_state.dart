@@ -4,7 +4,7 @@ import 'api.dart';
 import 'format.dart';
 import 'i18n.dart';
 
-enum AppTab { overview, incomes, report, invoices, settings }
+enum AppTab { overview, incomes, bank, report, invoices, settings }
 
 /// Общее состояние: пользователь, язык, выбранный год и вкладка.
 class AppState extends ChangeNotifier {

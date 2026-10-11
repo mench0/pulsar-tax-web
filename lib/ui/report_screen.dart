@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/format.dart';
 import 'common.dart';
+import 'tax_details.dart';
 import 'incomes_screen.dart' show DateField;
 import 'overview_screen.dart' show warningText;
 
@@ -179,6 +180,10 @@ class _ReportState extends State<_Report> {
             Text(tr('rep.stepsNote'), style: Theme.of(context).textTheme.bodySmall),
           ]),
         ]),
+      if (s['regime'] != 'GENERAL') ...[
+        TaxExplanation(key: ValueKey('calc-${st.year}-$_period'), year: st.year, quarter: _period == 0 ? null : _period),
+        FilingPanel(key: ValueKey('file-${st.year}-$_period'), year: st.year, quarter: _period == 0 ? null : _period),
+      ],
       Section(title: tr('rep.payTitle'), children: [
         Form(
           key: _payForm,
