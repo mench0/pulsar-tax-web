@@ -146,32 +146,29 @@ class AppPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Как в продуктах Контура: страница на всю ширину окна, без колонки по центру.
+    final side = MediaQuery.sizeOf(context).width >= 900 ? 24.0 : 16.0;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1080),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (title != null)
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  Text(title!, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  if (actions.isNotEmpty) Wrap(spacing: 8, runSpacing: 8, children: actions),
-                ],
-              ),
-            if (subtitle != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 16),
-                child: Text(subtitle!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
-              ),
-            ...children,
-          ]),
-        ),
-      ),
+      padding: EdgeInsets.fromLTRB(side, 20, side, 32),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (title != null)
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text(title!, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+              if (actions.isNotEmpty) Wrap(spacing: 8, runSpacing: 8, children: actions),
+            ],
+          ),
+        if (subtitle != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 16),
+            child: Text(subtitle!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor)),
+          ),
+        ...children,
+      ]),
     );
   }
 }
