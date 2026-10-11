@@ -67,7 +67,7 @@ API работает с PostgreSQL. По умолчанию он ищет баз
 
 ```bash
 cd pulsar-tax
-docker compose up -d db          # база запустится и будет подниматься вместе с Docker
+docker compose up -d             # база запустится и будет подниматься вместе с Docker
 ```
 
 **Без Docker:** установите PostgreSQL и создайте пользователя и базу:
@@ -127,7 +127,7 @@ java -jar app\target\pulsar-tax.jar
 ### Данные
 
 Все данные — в PostgreSQL. Таблицы создаёт и обновляет Flyway при запуске, вручную ничего выполнять не нужно.
-Начать заново при разработке: `docker compose down -v && docker compose up -d db` (или `dropdb pulsar && createdb -O pulsar pulsar`).
+Начать заново при разработке: `docker compose down -v && docker compose up -d` (или `dropdb pulsar && createdb -O pulsar pulsar`).
 
 **Переход со старой версии** (данные в `data/users.json` и `data/users/*.json`): запустите новую версию один
 раз с `PULSAR_IMPORT_LEGACY=путь/к/старой/data`. Пользователи, пароли и все записи перенесутся в базу,
@@ -274,8 +274,8 @@ sudo -u postgres psql -c "create database pulsar owner pulsar"
 scp app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 ```
 
-Вместо этого можно запустить API и PostgreSQL в Docker: `docker compose up -d` в папке `pulsar-tax`
-с паролем базы: `PULSAR_DB_PASSWORD=свой-пароль docker compose up -d`, а дальше — Caddy, как в 8.4.
+Вместо этого можно запустить PostgreSQL в Docker (`PULSAR_DB_PASSWORD=свой-пароль docker compose up -d` в папке
+`pulsar-tax`), а API — из образа по `Dockerfile` (команды в README бэкенда); дальше — Caddy, как в 8.4.
 
 ### 8.2. API как служба
 
@@ -428,7 +428,7 @@ sudo systemctl restart pulsar-api
 | iOS: «Untrusted Developer» | Настройки → Основные → VPN и управление устройством → доверять |
 | `flutter test` пропускает сквозные тесты | Нет jar API: соберите `./mvnw verify` в `pulsar-tax` или задайте `PULSAR_JAR` |
 | `initdb: cannot be run as root` при `./mvnw verify` | Тесты бэкенда поднимают временный PostgreSQL, а он не запускается от root: запустите сборку от обычного пользователя |
-| `Connection to localhost:5432 refused` | PostgreSQL не запущен: `docker compose up -d db` или `sudo systemctl start postgresql`; либо неверный `PULSAR_DB_URL` |
+| `Connection to localhost:5432 refused` | PostgreSQL не запущен: `docker compose up -d` или `sudo systemctl start postgresql`; либо неверный `PULSAR_DB_URL` |
 | `password authentication failed` | Пароль в `PULSAR_DB_PASSWORD` не совпадает с паролем пользователя базы |
 | `Validate failed: Migrations have failed validation` | Миграцию в базе изменили вручную. Восстановите базу из копии (8.5) |
 | Android: `local.properties (No such file or directory)` | Файл создаёт Flutter: выполните `flutter pub get` (или `flutter run`) в `pulsar-tax-web`, потом открывайте проект в Android Studio |
