@@ -87,4 +87,18 @@ void main() {
   test('слишком короткий файл', () {
     expect(Statement.parse('только заголовок'), isNull);
   });
+
+  test('сохранённые колонки: отпечаток заголовка и применение', () {
+    final a = Statement.parse(statement)!;
+    final b = Statement.parse(statement.replaceFirst('Дата;Поступление', 'ДАТА;Поступление'))!;
+    expect(a.signature, b.signature, reason: 'регистр в заголовке не важен');
+    expect(a.signature, startsWith('csv-'));
+
+    final saved = Map<String, dynamic>.from(a.mapping.toJson())..['desc'] = 3;
+    expect(a.mapping.apply(saved, a.header.length), isTrue);
+    expect(a.mapping.desc, 3);
+    expect(a.mapping.apply({...saved, 'amount': 99}, a.header.length), isFalse, reason: 'колонки нет в выписке');
+    expect(a.mapping.apply({...saved, 'dateFormat': 'dd-mm'}, a.header.length), isFalse);
+    expect(a.mapping.amount, 1, reason: 'неподходящие настройки ничего не меняют');
+  });
 }

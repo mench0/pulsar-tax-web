@@ -175,6 +175,34 @@ class Mapping {
   int desc;
   int currencyCol;
   String currency;
+
+  Map<String, Object> toJson() => {
+        'date': date,
+        'amount': amount,
+        'debit': debit,
+        'desc': desc,
+        'currencyCol': currencyCol,
+        'dateFormat': dateFormat,
+        'currency': currency,
+      };
+
+  /// Применяет сохранённое сопоставление, если оно подходит к числу колонок выписки.
+  bool apply(Map<String, dynamic> saved, int columns) {
+    int col(String k) => (saved[k] as num?)?.toInt() ?? -1;
+    final cols = [col('date'), col('amount'), col('debit'), col('desc'), col('currencyCol')];
+    if (cols[0] < 0 || cols[1] < 0 || cols.any((c) => c >= columns)) return false;
+    final format = saved['dateFormat'];
+    final cur = saved['currency'];
+    if (!dateFormats.contains(format) || !currencies.contains(cur)) return false;
+    date = cols[0];
+    amount = cols[1];
+    debit = cols[2];
+    desc = cols[3];
+    currencyCol = cols[4];
+    dateFormat = format as String;
+    currency = cur as String;
+    return true;
+  }
 }
 
 /// Выписка: заголовок, строки данных и догадка о колонках.
@@ -184,6 +212,9 @@ class Statement {
   final List<String> header;
   final List<List<String>> data;
   final Mapping mapping;
+
+  /// Отпечаток заголовка: по нему узнаётся выписка того же банка, чтобы подставить сохранённые колонки.
+  String get signature => fingerprint(header.map((h) => h.toLowerCase()).join('|'));
 
   /// null, если в файле меньше двух строк.
   static Statement? parse(String text) {

@@ -65,6 +65,12 @@ class _Overview extends StatelessWidget {
       children: [
         if (needsSetup) Notice(tr('ov.setup'), onTap: () => st.go(AppTab.settings)),
         for (final w in warnings) Notice(warningText(tr, w), bad: warningIsBad(w)),
+        if ((Fmt.toNum(s['setAsidePercent']) ?? 0) > 0)
+          Notice(
+            tr('ov.setAside', {'percent': s['setAsidePercent'], 'due': f.money(s['totalDue'])}),
+            key: const Key('set-aside'),
+            onTap: () => st.go(AppTab.report),
+          ),
         Grid(minWidth: 200, children: [
           _Stat(label: tr('ov.income'), value: f.money(s['totalIncome']), sub: tr('ov.incomeSub')),
           _Stat(label: tr('ov.tax'), value: f.money(s['totalTax']), sub: rate),
@@ -74,6 +80,13 @@ class _Overview extends StatelessWidget {
             value: f.money(s['totalDue']),
             sub: tr('ov.dueSub', {'paid': f.money(s['totalPaid'])}),
             onTap: () => st.go(AppTab.report),
+          ),
+          _Stat(
+            key: const Key('expenses'),
+            label: tr('ov.expenses'),
+            value: f.money(s['totalExpenses']),
+            sub: tr('ov.expensesSub'),
+            onTap: () => st.go(AppTab.incomes),
           ),
           _Stat(
             label: tr('ov.threshold'),
