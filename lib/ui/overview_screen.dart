@@ -49,7 +49,7 @@ class _Overview extends StatelessWidget {
     final needsSetup = (profile['name'] as String).isEmpty;
     final status = s['thresholdStatus'];
     final percent = ((Fmt.toNum(s['thresholdPercent']) ?? 0) / 100).clamp(0.0, 1.0).toDouble();
-    final meterColor = status == 'EXCEEDED' ? Brand.bad : status == 'WARNING' ? Brand.amberDeep : Brand.ok;
+    final meterColor = status == 'EXCEEDED' ? Brand.badFill : status == 'WARNING' ? Brand.warningFill : Brand.okFill;
     final warnings = (s['warnings'] as List).cast<Map<String, dynamic>>();
     final deadlines = (s['deadlines'] as List).cast<Map<String, dynamic>>();
     final quarters = (s['quarters'] as List).cast<Map<String, dynamic>>();
@@ -125,7 +125,7 @@ class _Overview extends StatelessWidget {
                   SizedBox(
                     width: 96,
                     child: Text(d['date'] == null ? '—' : Fmt.date(d['date'] as String),
-                        style: const TextStyle(color: Brand.amberDeep, fontWeight: FontWeight.w600)),
+                        style: const TextStyle(color: Brand.warning, fontWeight: FontWeight.w600)),
                   ),
                   Expanded(child: Text(deadlineText(tr, d))),
                 ]),

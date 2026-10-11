@@ -89,13 +89,13 @@ class BrandTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.radio_button_checked, color: Brand.amber),
+      const Icon(Icons.radio_button_checked, color: Brand.red),
       const SizedBox(width: 8),
       Flexible(
         child: Text.rich(
           TextSpan(children: [
             const TextSpan(text: 'Pulsar '),
-            TextSpan(text: 'Tax', style: TextStyle(color: Brand.amber, fontWeight: FontWeight.w600)),
+            TextSpan(text: 'Tax', style: TextStyle(color: Brand.red, fontWeight: FontWeight.w600)),
           ]),
           overflow: TextOverflow.ellipsis,
         ),

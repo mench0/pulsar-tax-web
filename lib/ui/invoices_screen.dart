@@ -68,7 +68,7 @@ class StatusChip extends StatelessWidget {
     final tr = AppScope.of(context).tr;
     return Chip(
       label: Text(paid ? tr('invs.paid') : tr(long ? 'inv.waiting' : 'invs.waiting')),
-      backgroundColor: (paid ? Brand.ok : Brand.amberDeep).withValues(alpha: .12),
+      backgroundColor: (paid ? Brand.okFill : Brand.warningFill).withValues(alpha: .12),
       visualDensity: VisualDensity.compact,
     );
   }

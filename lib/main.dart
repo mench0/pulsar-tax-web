@@ -21,22 +21,62 @@ class PulsarApp extends StatelessWidget {
 
   final AppState state;
 
+  /// Тема в стиле продуктов Контура: белая шапка, графитовые кнопки, светло-серый фон, белые карточки.
   static ThemeData theme(Brightness b) {
-    final scheme = ColorScheme.fromSeed(seedColor: Brand.amberDeep, brightness: b);
+    final light = b == Brightness.light;
+    final accent = light ? Brand.accent : Brand.accentDark;
+    final onAccent = light ? Colors.white : Colors.black;
+    final text = light ? Brand.text : Brand.textDark;
+    final line = light ? Brand.line : Brand.lineDark;
+    final surface = light ? Brand.surface : Brand.surfaceDark;
+    final selected = light ? const Color(0xFFE6E6E6) : const Color(0xFF4D4D4D);
+    final scheme = ColorScheme.fromSeed(seedColor: Brand.accent, brightness: b, dynamicSchemeVariant: DynamicSchemeVariant.monochrome)
+        .copyWith(
+      primary: accent,
+      onPrimary: onAccent,
+      secondaryContainer: selected,
+      onSecondaryContainer: text,
+      error: Brand.badFill,
+      surface: surface,
+      onSurface: text,
+      outline: light ? const Color(0x29000000) : const Color(0x29FFFFFF),
+      outlineVariant: line,
+    );
+    final rounded = RoundedRectangleBorder(borderRadius: BorderRadius.circular(8));
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       fontFamily: 'NotoSans',
       fontFamilyFallback: const ['NotoSansArmenian'],
-      scaffoldBackgroundColor: b == Brightness.light ? const Color(0xFFF4F2EC) : const Color(0xFF0E1322),
-      appBarTheme: const AppBarTheme(backgroundColor: Brand.ink, foregroundColor: Color(0xFFEEF0F6)),
+      scaffoldBackgroundColor: light ? Brand.background : Brand.backgroundDark,
+      appBarTheme: AppBarTheme(
+        backgroundColor: light ? Brand.surface : Brand.headerDark,
+        foregroundColor: text,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: Border(bottom: BorderSide(color: line)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: light ? Brand.surface : Brand.headerDark,
+        indicatorColor: selected,
+        surfaceTintColor: Colors.transparent,
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: light ? Brand.surface : Brand.headerDark,
+        indicatorColor: selected,
+      ),
       cardTheme: CardThemeData(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: b == Brightness.light ? const Color(0xFFE3DFD5) : const Color(0xFF262E45)),
-        ),
+        color: surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: line)),
       ),
+      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(shape: rounded)),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(shape: rounded, foregroundColor: text)),
+      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(shape: rounded, foregroundColor: accent)),
+      dividerTheme: DividerThemeData(color: line),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
     );
   }
 

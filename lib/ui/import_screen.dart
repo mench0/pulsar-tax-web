@@ -272,7 +272,7 @@ class _ImportScreenState extends State<ImportScreen> {
         ]),
         trailing: Chip(
           label: Text(s.tr('imp.status.${r.status.name}')),
-          backgroundColor: (income ? Brand.ok : Brand.amberDeep).withValues(alpha: .12),
+          backgroundColor: (income ? Brand.okFill : Brand.warningFill).withValues(alpha: .12),
           visualDensity: VisualDensity.compact,
         ),
       ),
