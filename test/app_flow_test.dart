@@ -1,5 +1,5 @@
 // Сквозная проверка приложения против настоящего API (jar из репозитория pulsar-tax).
-// Путь к jar — PULSAR_JAR, по умолчанию ../pulsar-tax/pulsar/build/pulsar-tax.jar; без него тест пропускается.
+// Путь к jar — PULSAR_JAR, по умолчанию ../pulsar-tax/pulsar/target/pulsar-tax.jar; без него тест пропускается.
 @Tags(['api'])
 library;
 
@@ -25,7 +25,7 @@ const statement = '''Дата;Поступление;Списание;Назна
 /// HTTP-клиент без удержания соединений: иначе после теста остаётся таймер простоя на 15 секунд.
 IOClient client() => IOClient(HttpClient()..idleTimeout = Duration.zero);
 
-final jar = Platform.environment['PULSAR_JAR'] ?? '../pulsar-tax/pulsar/build/pulsar-tax.jar';
+final jar = Platform.environment['PULSAR_JAR'] ?? '../pulsar-tax/pulsar/target/pulsar-tax.jar';
 
 void main() {
   Process? server;
@@ -57,7 +57,11 @@ void main() {
       'PULSAR_DATA_DIR': dataDir.path,
       'PULSAR_CBA_URL': 'http://127.0.0.1:${cba!.port}/exchangerates.asmx',
     });
-    for (var i = 0; i < 100; i++) {
+    // Вывод API не нужен, но его надо вычитывать: иначе заполненный канал остановит процесс.
+    server!.stdout.drain<void>();
+    server!.stderr.drain<void>();
+    // Spring Boot со встроенным PostgreSQL запускается до полуминуты.
+    for (var i = 0; i < 600; i++) {
       try {
         if ((await http.get(Uri.parse('$base/'))).statusCode == 200) return;
       } catch (_) {
@@ -113,7 +117,7 @@ void main() {
 
   testWidgets('путь пользователя на телефоне: вход, профиль, доходы, импорт, уплата, счёт, язык', (t) async {
     if (server == null) {
-      markTestSkipped('нет $jar — соберите API: ./build.sh в pulsar-tax');
+      markTestSkipped('нет $jar — соберите API: ./mvnw package в pulsar-tax/pulsar');
       return;
     }
     t.view.physicalSize = const Size(390 * 3, 844 * 3);
