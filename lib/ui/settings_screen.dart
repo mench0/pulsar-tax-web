@@ -305,6 +305,10 @@ class _Export extends StatelessWidget {
           onPressed: () => exportFile(context, '/api/export/invoices.csv', 'invoices.csv', 'text/csv'),
           child: Text(tr('set.exportInvoices')),
         ),
+        OutlinedButton(
+          onPressed: () => exportFile(context, '/api/export/expenses.csv', 'expenses.csv', 'text/csv'),
+          child: Text(tr('set.exportExpenses')),
+        ),
       ]),
     ]);
   }

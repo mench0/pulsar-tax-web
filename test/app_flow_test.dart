@@ -31,6 +31,7 @@ void main() {
   Process? server;
   late String base;
   late Directory dataDir;
+  HttpServer? cba;
 
   setUpAll(() async {
     if (!File(jar).existsSync()) return;
@@ -40,8 +41,22 @@ void main() {
     final port = socket.port;
     await socket.close();
     base = 'http://127.0.0.1:$port';
-    server = await Process.start('java', ['-jar', jar],
-        environment: {'PULSAR_PORT': '$port', 'PULSAR_DATA_DIR': dataDir.path});
+    // Заглушка API ЦБ РА: ответ в формате метода ExchangeRatesByDate.
+    cba = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    cba!.listen((req) async {
+      await utf8.decoder.bind(req).join();
+      req.response.headers.contentType = ContentType('text', 'xml', charset: 'utf-8');
+      req.response.write('<soap:Envelope><soap:Body><ExchangeRatesByDateResponse><ExchangeRatesByDateResult><Rates>'
+          '<ExchangeRate><ISO>USD</ISO><Amount>1</Amount><Rate>387.5</Rate><Difference>0</Difference></ExchangeRate>'
+          '<ExchangeRate><ISO>EUR</ISO><Amount>1</Amount><Rate>450</Rate><Difference>0</Difference></ExchangeRate>'
+          '</Rates></ExchangeRatesByDateResult></ExchangeRatesByDateResponse></soap:Body></soap:Envelope>');
+      await req.response.close();
+    });
+    server = await Process.start('java', ['-jar', jar], environment: {
+      'PULSAR_PORT': '$port',
+      'PULSAR_DATA_DIR': dataDir.path,
+      'PULSAR_CBA_URL': 'http://127.0.0.1:${cba!.port}/exchangerates.asmx',
+    });
     for (var i = 0; i < 100; i++) {
       try {
         if ((await http.get(Uri.parse('$base/'))).statusCode == 200) return;
@@ -55,6 +70,7 @@ void main() {
 
   tearDownAll(() {
     server?.kill();
+    cba?.close(force: true);
     if (server != null) dataDir.deleteSync(recursive: true);
   });
 
@@ -65,10 +81,15 @@ void main() {
       await t.pump(const Duration(milliseconds: 50));
       if (until.evaluate().isNotEmpty && find.byType(CircularProgressIndicator).evaluate().isEmpty) return;
     }
-    throw TestFailure('не дождались: $until');
+    final texts = t.widgetList<Text>(find.byType(Text)).map((w) => w.data).whereType<String>().join(' | ');
+    throw TestFailure('не дождались: $until\nна экране: $texts');
   }
 
   Future<void> tap(WidgetTester t, Finder f) async {
+    // Всплывающие сообщения внизу экрана перекрывают кнопки — как и у пользователя, закрываем их.
+    for (final m in t.stateList<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))) {
+      m.clearSnackBars();
+    }
     // В середину экрана: у края элемент может оказаться под шапкой или панелью вкладок.
     // Пока идёт анимация прокрутки или смены экрана, касания игнорируются.
     await t.pump(const Duration(milliseconds: 1500));
@@ -212,5 +233,71 @@ void main() {
       await settle(t, find.byType(AppPage));
     }
     expect(jsonEncode(state.me), contains('wide@example.am'));
+  });
+
+  testWidgets('бесплатные функции: курс ЦБ, копилка, расходы, запоминание колонок выписки', (t) async {
+    if (server == null) {
+      markTestSkipped('нет $jar');
+      return;
+    }
+    t.view.physicalSize = const Size(390 * 3, 844 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    final api = Api(base: base, client: client(), tokens: MemoryTokenStore(), tokenAuth: true);
+    await t.runAsync(() => api.signIn('free@example.am', 'пароль-бесплатный', register: true, lang: 'ru'));
+    await t.runAsync(() => api.put('/api/profile', {'name': 'ИП Тест', 'regime': 'TURNOVER', 'activity': 'SERVICES'}));
+    final state = AppState(api: api);
+    await t.runAsync(state.init);
+    await t.runAsync(() => state.setLang('ru'));
+    state.go(AppTab.incomes);
+    await t.pumpWidget(PulsarApp(state: state));
+    await settle(t, find.byKey(const Key('income-amount')));
+
+    // Курс ЦБ подставляется сам при выборе валюты.
+    await choose(t, const Key('income-currency'), 'USD');
+    await settle(t, find.textContaining(RegExp(r'Курс ЦБ РА на \d'))); // с датой, а не общая подсказка
+    final rateField = t.widget<TextFormField>(find.byKey(const Key('income-rate')));
+    expect(rateField.controller!.text, '387.5');
+    await t.enterText(find.byKey(const Key('income-original')), '100');
+    await tap(t, find.byKey(const Key('income-add')));
+    // Копилка: 10% от 38 750 ֏.
+    await settle(t, find.textContaining('Отложите 3\u00a0875 ֏ на налог'));
+
+    // Расходы: отдельный вид, на налог не влияют.
+    await tap(t, find.text('Расходы').first);
+    await settle(t, find.byKey(const Key('expense-amount')));
+    await t.enterText(find.byKey(const Key('expense-amount')), '5000');
+    await choose(t, const Key('expense-category'), 'Программы и сервисы');
+    await tap(t, find.byKey(const Key('expense-add')));
+    await settle(t, find.textContaining('расходы 5\u00a0000 ֏')); // итог года, а не подпись в списке категорий
+    final summary = await t.runAsync(() => api.get('/api/summary?year=${state.year}')) as Map<String, dynamic>;
+    expect(summary['totalExpenses'], 5000);
+    expect(summary['totalTax'], 3875);
+
+    // Обзор: копилка и расходы.
+    state.go(AppTab.overview);
+    await settle(t, find.byKey(const Key('set-aside')));
+    expect(find.textContaining('откладывайте 10%'), findsOneWidget);
+
+    // Выписка в долларах: курсы ЦБ по кнопке, колонки запоминаются для следующей выписки этого банка.
+    const usd = 'Date;Description;Credit;Currency\n'
+        '2026-10-01;Upwork payout;200.00;USD\n'
+        '2026-10-02;Client B;100.00;USD\n';
+    final nav = t.state<NavigatorState>(find.byType(Navigator).first);
+    nav.push(MaterialPageRoute<void>(builder: (_) => AppScope(state: state, child: const ImportScreen(initialText: usd))));
+    await settle(t, find.byKey(const Key('fill-rates')));
+    await tap(t, find.byKey(const Key('fill-rates')));
+    await settle(t, find.textContaining('Курсы подставлены для строк: 2'));
+    // Пользователь поправил колонку: назначение — вторая.
+    await choose(t, const Key('map-desc'), 'Description');
+    await tap(t, find.byKey(const Key('import-submit')));
+    await settle(t, find.byKey(const Key('set-aside'))); // импорт открывали с «Обзора» — туда и вернулись
+    final profiles = await t.runAsync(() => api.get('/api/import-profiles')) as Map<String, dynamic>;
+    expect(profiles.length, 1);
+    final incomes = await t.runAsync(() => api.get('/api/incomes?year=2026')) as List<dynamic>;
+    expect(incomes.where((i) => i['currency'] == 'USD' && i['rate'] == 387.5).length, greaterThanOrEqualTo(2));
+
+    nav.push(MaterialPageRoute<void>(builder: (_) => AppScope(state: state, child: const ImportScreen(initialText: usd))));
+    await settle(t, find.text('Колонки подставлены из прошлой выписки этого банка'));
   });
 }
