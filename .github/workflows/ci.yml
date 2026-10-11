@@ -8,13 +8,23 @@ jobs:
   test:
     name: Анализ и тесты (с настоящим API)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pulsar
+          POSTGRES_USER: pulsar
+          POSTGRES_PASSWORD: pulsar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pulsar" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           repository: mench0/pulsar-tax
-          # API на Spring Boot пока в ветке spring-boot; после слияния в master — заменить на master.
-          ref: spring-boot
+          ref: master
           path: api
       - uses: actions/setup-java@v4
         with:
@@ -33,6 +43,9 @@ jobs:
         run: flutter test
         env:
           PULSAR_JAR: ${{ github.workspace }}/api/pulsar/target/pulsar-tax.jar
+          PULSAR_DB_URL: jdbc:postgresql://localhost:5432/pulsar
+          PULSAR_DB_USER: pulsar
+          PULSAR_DB_PASSWORD: pulsar
 
   web:
     name: Сборка веб
