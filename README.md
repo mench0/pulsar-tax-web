@@ -5,6 +5,8 @@ API (Java) — в репозитории [mench0/pulsar-tax](https://github.com/
 
 Языки: армянский, русский, английский.
 
+**Как пользоваться — подробное руководство: [docs/USER_GUIDE.md](docs/USER_GUIDE.md).**
+
 **Как установить и запустить всё — бэкенд, веб, Android, iOS и выкладку на сервер: [docs/SETUP.md](docs/SETUP.md).**
 
 ## Что умеет
