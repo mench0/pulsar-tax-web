@@ -28,7 +28,8 @@
 | Что | Зачем | Где взять |
 |---|---|---|
 | **Git** | скачать код | https://git-scm.com |
-| **JDK 21** или новее | бэкенд (Maven и PostgreSQL для разработки скачиваются сами) | Temurin: https://adoptium.net (проверка: `java -version`) |
+| **JDK 21** или новее | бэкенд (Maven скачивается сам) | Temurin: https://adoptium.net (проверка: `java -version`) |
+| **PostgreSQL 14+** или **Docker** | база данных API | https://www.postgresql.org/download или https://www.docker.com/products/docker-desktop |
 | **Flutter 3.47** или новее (канал stable) | веб, Android, iOS | https://docs.flutter.dev/get-started/install (проверка: `flutter --version`) |
 | **Google Chrome** | запуск веб-версии при разработке | https://www.google.com/chrome |
 | **Android Studio** | Android SDK и эмулятор | https://developer.android.com/studio |
@@ -37,7 +38,7 @@
 После установки Flutter выполните `flutter doctor`: он покажет, чего не хватает. Для Android примите
 лицензии: `flutter doctor --android-licenses`.
 
-Для работы только с бэкендом и вебом достаточно Git, JDK, Flutter и Chrome.
+Для работы только с бэкендом и вебом достаточно Git, JDK, PostgreSQL (или Docker), Flutter и Chrome.
 
 ## 2. Скачать код
 
@@ -56,6 +57,27 @@ pulsar/
 ```
 
 ## 3. Бэкенд
+
+### База данных
+
+API работает с PostgreSQL. По умолчанию он ищет базу `pulsar` на `localhost:5432`, пользователь `pulsar`,
+пароль `pulsar`.
+
+**Через Docker** (проще всего):
+
+```bash
+cd pulsar-tax/pulsar
+docker compose up -d db          # база запустится и будет подниматься вместе с Docker
+```
+
+**Без Docker:** установите PostgreSQL и создайте пользователя и базу:
+
+```bash
+sudo -u postgres psql -c "create user pulsar with password 'pulsar'"     # Windows: psql -U postgres -c "..."
+sudo -u postgres psql -c "create database pulsar owner pulsar"
+```
+
+Таблицы создаёт сам API при запуске (миграции Flyway).
 
 ### Сборка и запуск
 
@@ -76,11 +98,9 @@ java -jar target\pulsar-tax.jar
 ```
 
 Первая сборка скачивает Maven и библиотеки — несколько минут. Без тестов: `./mvnw -DskipTests package`.
-
-Отдельно ставить PostgreSQL для разработки не нужно: если адрес базы не задан, API запускает встроенный
-PostgreSQL в папке `data/pg`. Запуск занимает 10–20 секунд, в конце журнала —
-`Started PulsarApplication`. Встроенный PostgreSQL не работает от root/администратора — запускайте от обычного
-пользователя.
+Тесты бэкенда поднимают свой временный PostgreSQL и вашу базу не трогают; от root/администратора
+они не запускаются — используйте обычного пользователя. Запуск API занимает 5–15 секунд, в конце журнала —
+`Started PulsarApplication`.
 
 Проверка: откройте http://127.0.0.1:8080. Ответ должен быть `{"service":"pulsar-tax-api","status":"ok"}`.
 Интерфейса у бэкенда нет, он в приложении.
@@ -93,9 +113,8 @@ PostgreSQL в папке `data/pg`. Запуск занимает 10–20 сек
 |---|---|---|
 | `PULSAR_PORT` | `8080` | Порт занят |
 | `PULSAR_HOST` | `127.0.0.1` | `0.0.0.0` — для телефона в той же сети или для сервера |
-| `PULSAR_DB_URL` | — | Своя база PostgreSQL (на сервере обязательно), например `jdbc:postgresql://localhost:5432/pulsar` |
-| `PULSAR_DB_USER`, `PULSAR_DB_PASSWORD` | — | Пользователь и пароль базы |
-| `PULSAR_DATA_DIR` | `data` | Папка встроенной базы (когда `PULSAR_DB_URL` не задан) |
+| `PULSAR_DB_URL` | `jdbc:postgresql://localhost:5432/pulsar` | Другая база PostgreSQL |
+| `PULSAR_DB_USER`, `PULSAR_DB_PASSWORD` | `pulsar`, `pulsar` | Пользователь и пароль базы (на сервере — обязательно свой пароль) |
 | `PULSAR_ALLOWED_ORIGINS` | — | Адреса веб-версии через запятую, когда API доступен из сети |
 | `PULSAR_SECURE_COOKIE` | `0` | `1` — за HTTPS (на сервере обязательно) |
 | `PULSAR_COOKIE_SAMESITE` | `Strict` | `None` — веб-версия на другом домене (нужен HTTPS) |
@@ -107,7 +126,7 @@ PostgreSQL в папке `data/pg`. Запуск занимает 10–20 сек
 ### Данные
 
 Все данные — в PostgreSQL. Таблицы создаёт и обновляет Flyway при запуске, вручную ничего выполнять не нужно.
-Начать заново при разработке: остановите API и удалите папку `data/pg`.
+Начать заново при разработке: `docker compose down -v && docker compose up -d db` (или `dropdb pulsar && createdb -O pulsar pulsar`).
 
 **Переход со старой версии** (данные в `data/users.json` и `data/users/*.json`): запустите новую версию один
 раз с `PULSAR_IMPORT_LEGACY=путь/к/старой/data`. Пользователи, пароли и все записи перенесутся в базу,
@@ -216,7 +235,7 @@ API на `127.0.0.1` симулятору виден напрямую.
 ## 7. Тесты
 
 ```bash
-# бэкенд: модульные тесты и API целиком на встроенном PostgreSQL
+# бэкенд: модульные тесты и API целиком на временном PostgreSQL (своя база не нужна)
 cd pulsar-tax/pulsar && ./mvnw verify
 
 # приложение (сквозные тесты сами запускают API из ../pulsar-tax/pulsar/target/pulsar-tax.jar)
@@ -226,8 +245,9 @@ flutter test
 ```
 
 Если API лежит в другом месте: `PULSAR_JAR=/путь/к/pulsar-tax.jar flutter test`.
-Без jar сквозные тесты пропускаются, остальные выполняются. API в тестах запускается со встроенной базой;
-чтобы взять готовую, задайте `PULSAR_DB_URL` (и `PULSAR_DB_USER`) — тогда база должна быть пустой.
+Без jar сквозные тесты пропускаются, остальные выполняются. Сквозным тестам нужна запущенная база (раздел 3);
+другая база — через `PULSAR_DB_URL`, `PULSAR_DB_USER`, `PULSAR_DB_PASSWORD`. Каждый прогон регистрирует новых
+пользователей, поэтому для тестов лучше завести отдельную базу, например `pulsar_test`.
 
 В GitHub Actions на каждый push: в pulsar-tax — тесты API; в pulsar-tax-web — анализ, тесты с настоящим API,
 сборка веб, APK и iOS без подписи.
@@ -254,7 +274,7 @@ scp pulsar/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 ```
 
 Вместо этого можно запустить API и PostgreSQL в Docker: `docker compose up -d` в папке `pulsar-tax/pulsar`
-(см. `docker-compose.yml`, смените пароль базы), а дальше — Caddy, как в 8.4.
+с паролем базы: `PULSAR_DB_PASSWORD=свой-пароль docker compose up -d`, а дальше — Caddy, как в 8.4.
 
 ### 8.2. API как служба
 
@@ -402,8 +422,8 @@ sudo systemctl restart pulsar-api
 | iOS: `pod install` с ошибкой | `sudo gem install cocoapods`, затем `cd ios && pod repo update && pod install` |
 | iOS: «Untrusted Developer» | Настройки → Основные → VPN и управление устройством → доверять |
 | `flutter test` пропускает сквозные тесты | Нет jar API: соберите `./mvnw verify` в `pulsar-tax/pulsar` или задайте `PULSAR_JAR` |
-| `initdb: cannot be run as root` | Встроенный PostgreSQL не запускается от root: запустите API от обычного пользователя или задайте `PULSAR_DB_URL` |
-| `Connection to localhost:5432 refused` | PostgreSQL на сервере не запущен (`sudo systemctl start postgresql`) или неверный `PULSAR_DB_URL` |
+| `initdb: cannot be run as root` при `./mvnw verify` | Тесты бэкенда поднимают временный PostgreSQL, а он не запускается от root: запустите сборку от обычного пользователя |
+| `Connection to localhost:5432 refused` | PostgreSQL не запущен: `docker compose up -d db` или `sudo systemctl start postgresql`; либо неверный `PULSAR_DB_URL` |
 | `password authentication failed` | Пароль в `PULSAR_DB_PASSWORD` не совпадает с паролем пользователя базы |
 | `Validate failed: Migrations have failed validation` | Миграцию в базе изменили вручную. Восстановите базу из копии (8.5) |
 | Android: `local.properties (No such file or directory)` | Файл создаёт Flutter: выполните `flutter pub get` (или `flutter run`) в `pulsar-tax-web`, потом открывайте проект в Android Studio |

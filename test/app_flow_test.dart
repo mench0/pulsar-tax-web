@@ -1,5 +1,6 @@
 // Сквозная проверка приложения против настоящего API (jar из репозитория pulsar-tax).
 // Путь к jar — PULSAR_JAR, по умолчанию ../pulsar-tax/pulsar/target/pulsar-tax.jar; без него тест пропускается.
+// API нужен PostgreSQL: PULSAR_DB_URL, PULSAR_DB_USER, PULSAR_DB_PASSWORD (по умолчанию localhost:5432/pulsar).
 @Tags(['api'])
 library;
 
@@ -25,18 +26,19 @@ const statement = '''Дата;Поступление;Списание;Назна
 /// HTTP-клиент без удержания соединений: иначе после теста остаётся таймер простоя на 15 секунд.
 IOClient client() => IOClient(HttpClient()..idleTimeout = Duration.zero);
 
+/// Свой адрес почты на каждый прогон: база API общая, прошлые прогоны в ней остаются.
+final run = DateTime.now().millisecondsSinceEpoch;
+
 final jar = Platform.environment['PULSAR_JAR'] ?? '../pulsar-tax/pulsar/target/pulsar-tax.jar';
 
 void main() {
   Process? server;
   late String base;
-  late Directory dataDir;
   HttpServer? cba;
 
   setUpAll(() async {
     if (!File(jar).existsSync()) return;
     HttpOverrides.global = null; // flutter_test подменяет HTTP заглушкой, здесь нужен настоящий
-    dataDir = Directory.systemTemp.createTempSync('pulsar-app-test');
     final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final port = socket.port;
     await socket.close();
@@ -54,13 +56,12 @@ void main() {
     });
     server = await Process.start('java', ['-jar', jar], environment: {
       'PULSAR_PORT': '$port',
-      'PULSAR_DATA_DIR': dataDir.path,
       'PULSAR_CBA_URL': 'http://127.0.0.1:${cba!.port}/exchangerates.asmx',
     });
     // Вывод API не нужен, но его надо вычитывать: иначе заполненный канал остановит процесс.
     server!.stdout.drain<void>();
     server!.stderr.drain<void>();
-    // Spring Boot со встроенным PostgreSQL запускается до полуминуты.
+    // Spring Boot с миграциями базы запускается до полуминуты.
     for (var i = 0; i < 600; i++) {
       try {
         if ((await http.get(Uri.parse('$base/'))).statusCode == 200) return;
@@ -69,13 +70,12 @@ void main() {
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
-    throw StateError('API не запустился');
+    throw StateError('API не запустился: проверьте, что PostgreSQL доступен (PULSAR_DB_URL)');
   });
 
   tearDownAll(() {
     server?.kill();
     cba?.close(force: true);
-    if (server != null) dataDir.deleteSync(recursive: true);
   });
 
   /// Даёт настоящим HTTP-запросам завершиться и перерисовывает экран, пока не появится [until].
@@ -135,7 +135,7 @@ void main() {
 
     // Регистрация → настройки.
     await tap(t, find.byKey(const Key('toggle')));
-    await t.enterText(find.byKey(const Key('email')), 'app@example.am');
+    await t.enterText(find.byKey(const Key('email')), 'app-$run@example.am');
     await t.enterText(find.byKey(const Key('password')), 'пароль-приложения');
     await tap(t, find.byKey(const Key('submit')));
     await settle(t, find.byKey(const Key('profile-name')));
@@ -210,7 +210,7 @@ void main() {
     await tap(t, find.byKey(const Key('logout')));
     await settle(t, find.byKey(const Key('submit')));
     expect(tokens.token, isNull);
-    await t.enterText(find.byKey(const Key('email')), 'app@example.am');
+    await t.enterText(find.byKey(const Key('email')), 'app-$run@example.am');
     await t.enterText(find.byKey(const Key('password')), 'пароль-приложения');
     await tap(t, find.byKey(const Key('submit')));
     await settle(t, find.text('ИП Арам Петросян'));
@@ -225,7 +225,7 @@ void main() {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     final api = Api(base: base, client: client(), tokens: MemoryTokenStore(), tokenAuth: true);
-    await t.runAsync(() => api.signIn('wide@example.am', 'пароль-широкий', register: true));
+    await t.runAsync(() => api.signIn('wide-$run@example.am', 'пароль-широкий', register: true));
     final state = AppState(api: api);
     await t.runAsync(state.init);
     await t.pumpWidget(PulsarApp(state: state));
@@ -236,7 +236,7 @@ void main() {
       state.go(tab);
       await settle(t, find.byType(AppPage));
     }
-    expect(jsonEncode(state.me), contains('wide@example.am'));
+    expect(jsonEncode(state.me), contains('wide-$run@example.am'));
   });
 
   testWidgets('бесплатные функции: курс ЦБ, копилка, расходы, запоминание колонок выписки', (t) async {
@@ -248,7 +248,7 @@ void main() {
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
     final api = Api(base: base, client: client(), tokens: MemoryTokenStore(), tokenAuth: true);
-    await t.runAsync(() => api.signIn('free@example.am', 'пароль-бесплатный', register: true, lang: 'ru'));
+    await t.runAsync(() => api.signIn('free-$run@example.am', 'пароль-бесплатный', register: true, lang: 'ru'));
     await t.runAsync(() => api.put('/api/profile', {'name': 'ИП Тест', 'regime': 'TURNOVER', 'activity': 'SERVICES'}));
     final state = AppState(api: api);
     await t.runAsync(state.init);

@@ -46,7 +46,8 @@ test/                        тесты разбора выписок, пере�
 
 ```bash
 # в репозитории pulsar-tax
-cd pulsar && ./mvnw -DskipTests package && java -jar target/pulsar-tax.jar   # http://127.0.0.1:8080
+cd pulsar && docker compose up -d db                                     # PostgreSQL
+./mvnw -DskipTests package && java -jar target/pulsar-tax.jar            # http://127.0.0.1:8080
 
 # здесь
 flutter pub get
