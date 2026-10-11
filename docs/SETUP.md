@@ -121,6 +121,7 @@ java -jar target\pulsar-tax.jar
 | `PULSAR_SIGNUP` | `open` | `closed` — закрыть регистрацию новых пользователей |
 | `PULSAR_TELEGRAM_TOKEN` | — | Токен бота для напоминаний в Telegram |
 | `PULSAR_CBA_URL` | API ЦБ РА | Менять не нужно, используется в тестах |
+| `PULSAR_FIRST_USER_EMAIL`, `PULSAR_FIRST_USER_PASSWORD` | — | Создать первого пользователя при запуске (удобно при `PULSAR_SIGNUP=closed`); существующего не меняет |
 | `PULSAR_IMPORT_LEGACY` | — | Папка данных старой версии (JSON-файлы) — перенести в базу при первом запуске |
 
 ### Данные
@@ -296,6 +297,10 @@ Environment=PULSAR_DB_USER=pulsar
 Environment=PULSAR_DB_PASSWORD=СЛОЖНЫЙ-ПАРОЛЬ
 Environment=PULSAR_SECURE_COOKIE=1
 Environment=PULSAR_ALLOWED_ORIGINS=https://app.pulsar.am
+# Первый вход при закрытой регистрации; после запуска пароль можно убрать и сменить в приложении:
+# Environment=PULSAR_SIGNUP=closed
+# Environment=PULSAR_FIRST_USER_EMAIL=you@pulsar.am
+# Environment=PULSAR_FIRST_USER_PASSWORD=…
 # Environment=PULSAR_TELEGRAM_TOKEN=…
 Restart=always
 
