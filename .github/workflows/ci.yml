@@ -13,15 +13,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: mench0/pulsar-tax
-          # Вход по токену пока только в ветке PR mench0/pulsar-tax#1; после слияния — заменить на main.
-          ref: claude/intelligent-thompson-f0nu7a
+          # API на Spring Boot пока в ветке spring-boot; после слияния в master — заменить на master.
+          ref: spring-boot
           path: api
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - name: Собрать API
-        run: bash api/pulsar/build.sh
+        working-directory: api/pulsar
+        run: ./mvnw -B -q -DskipTests package
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -31,7 +32,7 @@ jobs:
       - name: Тесты
         run: flutter test
         env:
-          PULSAR_JAR: ${{ github.workspace }}/api/pulsar/build/pulsar-tax.jar
+          PULSAR_JAR: ${{ github.workspace }}/api/pulsar/target/pulsar-tax.jar
 
   web:
     name: Сборка веб

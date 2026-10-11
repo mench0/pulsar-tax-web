@@ -5,7 +5,7 @@
 
 | Часть | Репозиторий | Технология |
 |---|---|---|
-| Бэкенд (API) | [mench0/pulsar-tax](https://github.com/mench0/pulsar-tax) | Java 21, без внешних библиотек |
+| Бэкенд (API) | [mench0/pulsar-tax](https://github.com/mench0/pulsar-tax) | Java 21, Spring Boot, PostgreSQL |
 | Веб, Android, iOS | [mench0/pulsar-tax-web](https://github.com/mench0/pulsar-tax-web) | Flutter (Dart) |
 
 Содержание:
@@ -28,7 +28,7 @@
 | Что | Зачем | Где взять |
 |---|---|---|
 | **Git** | скачать код | https://git-scm.com |
-| **JDK 21** или новее | бэкенд | Temurin: https://adoptium.net (проверка: `java -version`) |
+| **JDK 21** или новее | бэкенд (Maven и PostgreSQL для разработки скачиваются сами) | Temurin: https://adoptium.net (проверка: `java -version`) |
 | **Flutter 3.47** или новее (канал stable) | веб, Android, iOS | https://docs.flutter.dev/get-started/install (проверка: `flutter --version`) |
 | **Google Chrome** | запуск веб-версии при разработке | https://www.google.com/chrome |
 | **Android Studio** | Android SDK и эмулятор | https://developer.android.com/studio |
@@ -63,28 +63,24 @@ pulsar/
 
 ```bash
 cd pulsar-tax/pulsar
-./build.sh test                 # собрать и прогнать тесты (должно быть «упало: 0»)
-java -jar build/pulsar-tax.jar
+./mvnw verify                   # скачать зависимости, прогнать тесты и собрать target/pulsar-tax.jar
+java -jar target/pulsar-tax.jar
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
 cd pulsar-tax\pulsar
-mkdir build\classes -Force
-javac --release 21 -encoding UTF-8 -d build\classes (Get-ChildItem -Recurse src\main\java -Filter *.java).FullName
-jar --create --file build\pulsar-tax.jar --main-class am.pulsar.tax.Main -C build\classes .
-java -jar build\pulsar-tax.jar
+.\mvnw.cmd verify
+java -jar target\pulsar-tax.jar
 ```
 
-Сервер напишет:
+Первая сборка скачивает Maven и библиотеки — несколько минут. Без тестов: `./mvnw -DskipTests package`.
 
-```
-Pulsar Tax API: http://127.0.0.1:8080
-Allowed origins: local addresses only
-Data dir: /…/pulsar-tax/pulsar/data
-Telegram reminders: off
-```
+Отдельно ставить PostgreSQL для разработки не нужно: если адрес базы не задан, API запускает встроенный
+PostgreSQL в папке `data/pg`. Запуск занимает 10–20 секунд, в конце журнала —
+`Started PulsarApplication`. Встроенный PostgreSQL не работает от root/администратора — запускайте от обычного
+пользователя.
 
 Проверка: откройте http://127.0.0.1:8080. Ответ должен быть `{"service":"pulsar-tax-api","status":"ok"}`.
 Интерфейса у бэкенда нет, он в приложении.
@@ -97,32 +93,32 @@ Telegram reminders: off
 |---|---|---|
 | `PULSAR_PORT` | `8080` | Порт занят |
 | `PULSAR_HOST` | `127.0.0.1` | `0.0.0.0` — для телефона в той же сети или для сервера |
-| `PULSAR_DATA_DIR` | `data` | Где хранить данные и резервные копии |
+| `PULSAR_DB_URL` | — | Своя база PostgreSQL (на сервере обязательно), например `jdbc:postgresql://localhost:5432/pulsar` |
+| `PULSAR_DB_USER`, `PULSAR_DB_PASSWORD` | — | Пользователь и пароль базы |
+| `PULSAR_DATA_DIR` | `data` | Папка встроенной базы (когда `PULSAR_DB_URL` не задан) |
 | `PULSAR_ALLOWED_ORIGINS` | — | Адреса веб-версии через запятую, когда API доступен из сети |
 | `PULSAR_SECURE_COOKIE` | `0` | `1` — за HTTPS (на сервере обязательно) |
 | `PULSAR_COOKIE_SAMESITE` | `Strict` | `None` — веб-версия на другом домене (нужен HTTPS) |
 | `PULSAR_SIGNUP` | `open` | `closed` — закрыть регистрацию новых пользователей |
 | `PULSAR_TELEGRAM_TOKEN` | — | Токен бота для напоминаний в Telegram |
 | `PULSAR_CBA_URL` | API ЦБ РА | Менять не нужно, используется в тестах |
+| `PULSAR_IMPORT_LEGACY` | — | Папка данных старой версии (JSON-файлы) — перенести в базу при первом запуске |
 
 ### Данные
 
-```
-data/
-  users.json            учётные записи и сессии
-  users/{id}.json       данные каждого ИП
-  backups/ГГГГ-ММ-ДД/   ежедневные копии, хранятся 14 дней
-```
+Все данные — в PostgreSQL. Таблицы создаёт и обновляет Flyway при запуске, вручную ничего выполнять не нужно.
+Начать заново при разработке: остановите API и удалите папку `data/pg`.
 
-Чтобы восстановить данные, остановите сервер, скопируйте файлы из нужной папки `backups/…` в `data/` и
-запустите сервер снова.
+**Переход со старой версии** (данные в `data/users.json` и `data/users/*.json`): запустите новую версию один
+раз с `PULSAR_IMPORT_LEGACY=путь/к/старой/data`. Пользователи, пароли и все записи перенесутся в базу,
+заново входить не нужно.
 
 ### Напоминания в Telegram (по желанию)
 
 1. В Telegram откройте [@BotFather](https://t.me/BotFather) → `/newbot` → скопируйте токен.
 2. Запустите API с токеном:
    ```bash
-   PULSAR_TELEGRAM_TOKEN=123456:ABC... java -jar build/pulsar-tax.jar
+   PULSAR_TELEGRAM_TOKEN=123456:ABC... java -jar target/pulsar-tax.jar
    ```
 3. В приложении: «Настройки» → «Подключить Telegram» → в боте нажмите «Start».
 
@@ -138,8 +134,7 @@ flutter pub get
 flutter run -d chrome
 ```
 
-Откроется Chrome с приложением. Зарегистрируйтесь — первая учётная запись получит данные старой версии,
-если они были.
+Откроется Chrome с приложением. Зарегистрируйтесь и заполните профиль ИП.
 
 Пока API слушает `127.0.0.1`, он принимает запросы приложения с любого локального порта, поэтому
 `PULSAR_ALLOWED_ORIGINS` при разработке не нужен.
@@ -170,7 +165,7 @@ flutter run -d chrome
    `ipconfig getifaddr en0` (macOS) или `hostname -I` (Linux), например `192.168.1.20`.
 3. Запустите API так, чтобы он был виден в сети:
    ```bash
-   PULSAR_HOST=0.0.0.0 java -jar build/pulsar-tax.jar
+   PULSAR_HOST=0.0.0.0 java -jar target/pulsar-tax.jar
    ```
    Разрешите доступ в брандмауэре, если система спросит.
 4. Запустите приложение с адресом компьютера:
@@ -221,19 +216,21 @@ API на `127.0.0.1` симулятору виден напрямую.
 ## 7. Тесты
 
 ```bash
-# бэкенд
-cd pulsar-tax/pulsar && ./build.sh test
+# бэкенд: модульные тесты и API целиком на встроенном PostgreSQL
+cd pulsar-tax/pulsar && ./mvnw verify
 
-# приложение (сквозные тесты сами запускают API из ../pulsar-tax/pulsar/build/pulsar-tax.jar)
+# приложение (сквозные тесты сами запускают API из ../pulsar-tax/pulsar/target/pulsar-tax.jar)
 cd pulsar-tax-web
 flutter analyze
 flutter test
 ```
 
 Если API лежит в другом месте: `PULSAR_JAR=/путь/к/pulsar-tax.jar flutter test`.
-Без jar сквозные тесты пропускаются, остальные выполняются.
+Без jar сквозные тесты пропускаются, остальные выполняются. API в тестах запускается со встроенной базой;
+чтобы взять готовую, задайте `PULSAR_DB_URL` (и `PULSAR_DB_USER`) — тогда база должна быть пустой.
 
-В GitHub Actions (`.github/workflows/ci.yml`) на каждый push собираются API, веб, APK и iOS без подписи.
+В GitHub Actions на каждый push: в pulsar-tax — тесты API; в pulsar-tax-web — анализ, тесты с настоящим API,
+сборка веб, APK и iOS без подписи.
 
 ## 8. Выкладка на сервер
 
@@ -243,15 +240,21 @@ API на `api.pulsar.am`, веб-версия на `app.pulsar.am`. Оба по�
 ### 8.1. Сервер
 
 ```bash
-sudo apt update && sudo apt install -y openjdk-21-jre-headless caddy
+sudo apt update && sudo apt install -y openjdk-21-jre-headless caddy postgresql
 sudo useradd --system --create-home --home-dir /opt/pulsar pulsar
+# база и её пользователь (пароль придумайте свой)
+sudo -u postgres psql -c "create user pulsar with password 'СЛОЖНЫЙ-ПАРОЛЬ'"
+sudo -u postgres psql -c "create database pulsar owner pulsar"
 ```
 
-Соберите jar на своём компьютере (`./build.sh test`) и скопируйте:
+Соберите jar на своём компьютере (`./mvnw verify`) и скопируйте:
 
 ```bash
-scp pulsar/build/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
+scp pulsar/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 ```
+
+Вместо этого можно запустить API и PostgreSQL в Docker: `docker compose up -d` в папке `pulsar-tax/pulsar`
+(см. `docker-compose.yml`, смените пароль базы), а дальше — Caddy, как в 8.4.
 
 ### 8.2. API как служба
 
@@ -260,7 +263,7 @@ scp pulsar/build/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 ```ini
 [Unit]
 Description=Pulsar Tax API
-After=network.target
+After=network.target postgresql.service
 
 [Service]
 User=pulsar
@@ -268,7 +271,9 @@ WorkingDirectory=/opt/pulsar
 ExecStart=/usr/bin/java -jar /opt/pulsar/pulsar-tax.jar
 Environment=PULSAR_HOST=127.0.0.1
 Environment=PULSAR_PORT=8080
-Environment=PULSAR_DATA_DIR=/opt/pulsar/data
+Environment=PULSAR_DB_URL=jdbc:postgresql://localhost:5432/pulsar
+Environment=PULSAR_DB_USER=pulsar
+Environment=PULSAR_DB_PASSWORD=СЛОЖНЫЙ-ПАРОЛЬ
 Environment=PULSAR_SECURE_COOKIE=1
 Environment=PULSAR_ALLOWED_ORIGINS=https://app.pulsar.am
 # Environment=PULSAR_TELEGRAM_TOKEN=…
@@ -284,7 +289,9 @@ sudo systemctl daemon-reload && sudo systemctl enable --now pulsar-api
 sudo journalctl -u pulsar-api -f        # журнал
 ```
 
-API слушает только `127.0.0.1`, наружу его выставляет Caddy с HTTPS.
+Файл службы содержит пароль базы: `sudo chmod 600 /etc/systemd/system/pulsar-api.service`.
+API слушает только `127.0.0.1`, наружу его выставляет Caddy с HTTPS. Состояние для мониторинга:
+`curl http://127.0.0.1:8080/actuator/health`.
 
 ### 8.3. Веб-версия
 
@@ -321,16 +328,24 @@ https://app.pulsar.am открывает приложение.
 
 ### 8.5. Резервные копии
 
-API каждый день копирует данные в `/opt/pulsar/data/backups`. Копии на том же сервере не спасут при его
-потере — раз в сутки забирайте папку `/opt/pulsar/data` на другой компьютер или в облачное хранилище
-(например `rsync` по cron).
+Копия базы раз в сутки (cron пользователя postgres, `sudo -u postgres crontab -e`):
+
+```
+15 3 * * * pg_dump -Fc pulsar > /var/lib/postgresql/backups/pulsar-$(date +\%F).dump && find /var/lib/postgresql/backups -name '*.dump' -mtime +14 -delete
+```
+
+(папку создайте заранее: `sudo -u postgres mkdir -p /var/lib/postgresql/backups`). Восстановление:
+`sudo -u postgres pg_restore --clean -d pulsar файл.dump`. Копии на том же сервере не спасут при его потере —
+забирайте их на другой компьютер или в облачное хранилище (например `rsync` по cron).
 
 ### 8.6. Обновление
 
 ```bash
-scp pulsar/build/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
+scp pulsar/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 sudo systemctl restart pulsar-api
 ```
+
+Новые миграции базы Flyway применит сам при запуске. Перед обновлением сделайте копию базы (8.5).
 
 ## 9. Сборка для Google Play и App Store
 
@@ -386,5 +401,9 @@ sudo systemctl restart pulsar-api
 | «Курс ЦБ РА недоступен» | Сервер не достучался до `api.cba.am` (сеть или брандмауэр). Курс можно ввести вручную |
 | iOS: `pod install` с ошибкой | `sudo gem install cocoapods`, затем `cd ios && pod repo update && pod install` |
 | iOS: «Untrusted Developer» | Настройки → Основные → VPN и управление устройством → доверять |
-| `flutter test` пропускает сквозные тесты | Нет jar API: соберите `./build.sh` в `pulsar-tax/pulsar` или задайте `PULSAR_JAR` |
-| Файл данных повреждён, API не стартует | Восстановите `data/` из `data/backups/ГГГГ-ММ-ДД/` (раздел 3) |
+| `flutter test` пропускает сквозные тесты | Нет jar API: соберите `./mvnw verify` в `pulsar-tax/pulsar` или задайте `PULSAR_JAR` |
+| `initdb: cannot be run as root` | Встроенный PostgreSQL не запускается от root: запустите API от обычного пользователя или задайте `PULSAR_DB_URL` |
+| `Connection to localhost:5432 refused` | PostgreSQL на сервере не запущен (`sudo systemctl start postgresql`) или неверный `PULSAR_DB_URL` |
+| `password authentication failed` | Пароль в `PULSAR_DB_PASSWORD` не совпадает с паролем пользователя базы |
+| `Validate failed: Migrations have failed validation` | Миграцию в базе изменили вручную. Восстановите базу из копии (8.5) |
+| Android: `local.properties (No such file or directory)` | Файл создаёт Flutter: выполните `flutter pub get` (или `flutter run`) в `pulsar-tax-web`, потом открывайте проект в Android Studio |
