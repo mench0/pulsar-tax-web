@@ -85,8 +85,8 @@ sudo -u postgres psql -c "create database pulsar owner pulsar"
 
 ```bash
 cd pulsar-tax/pulsar
-./mvnw verify                   # скачать зависимости, прогнать тесты и собрать target/pulsar-tax.jar
-java -jar target/pulsar-tax.jar
+./mvnw verify                   # скачать зависимости, прогнать тесты и собрать app/target/pulsar-tax.jar
+java -jar app/target/pulsar-tax.jar
 ```
 
 **Windows (PowerShell):**
@@ -94,7 +94,7 @@ java -jar target/pulsar-tax.jar
 ```powershell
 cd pulsar-tax\pulsar
 .\mvnw.cmd verify
-java -jar target\pulsar-tax.jar
+java -jar app\target\pulsar-tax.jar
 ```
 
 Первая сборка скачивает Maven и библиотеки — несколько минут. Без тестов: `./mvnw -DskipTests package`.
@@ -138,7 +138,7 @@ java -jar target\pulsar-tax.jar
 1. В Telegram откройте [@BotFather](https://t.me/BotFather) → `/newbot` → скопируйте токен.
 2. Запустите API с токеном:
    ```bash
-   PULSAR_TELEGRAM_TOKEN=123456:ABC... java -jar target/pulsar-tax.jar
+   PULSAR_TELEGRAM_TOKEN=123456:ABC... java -jar app/target/pulsar-tax.jar
    ```
 3. В приложении: «Настройки» → «Подключить Telegram» → в боте нажмите «Start».
 
@@ -185,7 +185,7 @@ flutter run -d chrome
    `ipconfig getifaddr en0` (macOS) или `hostname -I` (Linux), например `192.168.1.20`.
 3. Запустите API так, чтобы он был виден в сети:
    ```bash
-   PULSAR_HOST=0.0.0.0 java -jar target/pulsar-tax.jar
+   PULSAR_HOST=0.0.0.0 java -jar app/target/pulsar-tax.jar
    ```
    Разрешите доступ в брандмауэре, если система спросит.
 4. Запустите приложение с адресом компьютера:
@@ -239,7 +239,7 @@ API на `127.0.0.1` симулятору виден напрямую.
 # бэкенд: модульные тесты и API целиком на временном PostgreSQL (своя база не нужна)
 cd pulsar-tax/pulsar && ./mvnw verify
 
-# приложение (сквозные тесты сами запускают API из ../pulsar-tax/pulsar/target/pulsar-tax.jar)
+# приложение (сквозные тесты сами запускают API из ../pulsar-tax/pulsar/app/target/pulsar-tax.jar)
 cd pulsar-tax-web
 flutter analyze
 flutter test
@@ -271,7 +271,7 @@ sudo -u postgres psql -c "create database pulsar owner pulsar"
 Соберите jar на своём компьютере (`./mvnw verify`) и скопируйте:
 
 ```bash
-scp pulsar/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
+scp pulsar/app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 ```
 
 Вместо этого можно запустить API и PostgreSQL в Docker: `docker compose up -d` в папке `pulsar-tax/pulsar`
@@ -366,7 +366,7 @@ https://app.pulsar.am открывает приложение.
 ### 8.6. Обновление
 
 ```bash
-scp pulsar/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
+scp pulsar/app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 sudo systemctl restart pulsar-api
 ```
 

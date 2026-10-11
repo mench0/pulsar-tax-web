@@ -24,7 +24,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: mench0/pulsar-tax
-          ref: master
+          # Многомодульный бэкенд пока в ветке test-structure; после слияния в master — заменить на master.
+          ref: test-structure
           path: api
       - uses: actions/setup-java@v4
         with:
@@ -42,7 +43,7 @@ jobs:
       - name: Тесты
         run: flutter test
         env:
-          PULSAR_JAR: ${{ github.workspace }}/api/pulsar/target/pulsar-tax.jar
+          PULSAR_JAR: ${{ github.workspace }}/api/pulsar/app/target/pulsar-tax.jar
           PULSAR_DB_URL: jdbc:postgresql://localhost:5432/pulsar
           PULSAR_DB_USER: pulsar
           PULSAR_DB_PASSWORD: pulsar
