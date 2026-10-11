@@ -1,5 +1,5 @@
 // Сквозная проверка приложения против настоящего API (jar из репозитория pulsar-tax).
-// Путь к jar — PULSAR_JAR, по умолчанию ../pulsar-tax/pulsar/target/pulsar-tax.jar; без него тест пропускается.
+// Путь к jar — PULSAR_JAR, по умолчанию ../pulsar-tax/pulsar/app/target/pulsar-tax.jar; без него тест пропускается.
 // API нужен PostgreSQL: PULSAR_DB_URL, PULSAR_DB_USER, PULSAR_DB_PASSWORD (по умолчанию localhost:5432/pulsar).
 @Tags(['api'])
 library;
@@ -29,7 +29,7 @@ IOClient client() => IOClient(HttpClient()..idleTimeout = Duration.zero);
 /// Свой адрес почты на каждый прогон: база API общая, прошлые прогоны в ней остаются.
 final run = DateTime.now().millisecondsSinceEpoch;
 
-final jar = Platform.environment['PULSAR_JAR'] ?? '../pulsar-tax/pulsar/target/pulsar-tax.jar';
+final jar = Platform.environment['PULSAR_JAR'] ?? '../pulsar-tax/pulsar/app/target/pulsar-tax.jar';
 
 void main() {
   Process? server;
