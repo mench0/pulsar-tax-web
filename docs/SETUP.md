@@ -66,7 +66,7 @@ API работает с PostgreSQL. По умолчанию он ищет баз
 **Через Docker** (проще всего):
 
 ```bash
-cd pulsar-tax/pulsar
+cd pulsar-tax
 docker compose up -d db          # база запустится и будет подниматься вместе с Docker
 ```
 
@@ -84,7 +84,7 @@ sudo -u postgres psql -c "create database pulsar owner pulsar"
 **macOS и Linux:**
 
 ```bash
-cd pulsar-tax/pulsar
+cd pulsar-tax
 ./mvnw verify                   # скачать зависимости, прогнать тесты и собрать app/target/pulsar-tax.jar
 java -jar app/target/pulsar-tax.jar
 ```
@@ -92,7 +92,7 @@ java -jar app/target/pulsar-tax.jar
 **Windows (PowerShell):**
 
 ```powershell
-cd pulsar-tax\pulsar
+cd pulsar-tax
 .\mvnw.cmd verify
 java -jar app\target\pulsar-tax.jar
 ```
@@ -237,9 +237,9 @@ API на `127.0.0.1` симулятору виден напрямую.
 
 ```bash
 # бэкенд: модульные тесты и API целиком на временном PostgreSQL (своя база не нужна)
-cd pulsar-tax/pulsar && ./mvnw verify
+cd pulsar-tax && ./mvnw verify
 
-# приложение (сквозные тесты сами запускают API из ../pulsar-tax/pulsar/app/target/pulsar-tax.jar)
+# приложение (сквозные тесты сами запускают API из ../pulsar-tax/app/target/pulsar-tax.jar)
 cd pulsar-tax-web
 flutter analyze
 flutter test
@@ -271,10 +271,10 @@ sudo -u postgres psql -c "create database pulsar owner pulsar"
 Соберите jar на своём компьютере (`./mvnw verify`) и скопируйте:
 
 ```bash
-scp pulsar/app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
+scp app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 ```
 
-Вместо этого можно запустить API и PostgreSQL в Docker: `docker compose up -d` в папке `pulsar-tax/pulsar`
+Вместо этого можно запустить API и PostgreSQL в Docker: `docker compose up -d` в папке `pulsar-tax`
 с паролем базы: `PULSAR_DB_PASSWORD=свой-пароль docker compose up -d`, а дальше — Caddy, как в 8.4.
 
 ### 8.2. API как служба
@@ -366,7 +366,7 @@ https://app.pulsar.am открывает приложение.
 ### 8.6. Обновление
 
 ```bash
-scp pulsar/app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
+scp app/target/pulsar-tax.jar root@СЕРВЕР:/opt/pulsar/
 sudo systemctl restart pulsar-api
 ```
 
@@ -426,7 +426,7 @@ sudo systemctl restart pulsar-api
 | «Курс ЦБ РА недоступен» | Сервер не достучался до `api.cba.am` (сеть или брандмауэр). Курс можно ввести вручную |
 | iOS: `pod install` с ошибкой | `sudo gem install cocoapods`, затем `cd ios && pod repo update && pod install` |
 | iOS: «Untrusted Developer» | Настройки → Основные → VPN и управление устройством → доверять |
-| `flutter test` пропускает сквозные тесты | Нет jar API: соберите `./mvnw verify` в `pulsar-tax/pulsar` или задайте `PULSAR_JAR` |
+| `flutter test` пропускает сквозные тесты | Нет jar API: соберите `./mvnw verify` в `pulsar-tax` или задайте `PULSAR_JAR` |
 | `initdb: cannot be run as root` при `./mvnw verify` | Тесты бэкенда поднимают временный PostgreSQL, а он не запускается от root: запустите сборку от обычного пользователя |
 | `Connection to localhost:5432 refused` | PostgreSQL не запущен: `docker compose up -d db` или `sudo systemctl start postgresql`; либо неверный `PULSAR_DB_URL` |
 | `password authentication failed` | Пароль в `PULSAR_DB_PASSWORD` не совпадает с паролем пользователя базы |
