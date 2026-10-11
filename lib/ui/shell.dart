@@ -50,7 +50,7 @@ class Shell extends StatelessWidget {
         ],
       ),
       body: wide
-          ? Row(children: [
+          ? Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               NavigationRail(
                 selectedIndex: s.tab.index,
                 labelType: NavigationRailLabelType.all,
