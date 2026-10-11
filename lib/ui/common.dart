@@ -5,12 +5,37 @@ import '../core/api.dart';
 import '../core/app_state.dart';
 
 /// Цвета бренда: тёмно-синий, янтарный, зелёный и красный для статусов.
+/// Цвета в стиле продуктов Контура (дизайн-система Kontur UI, пакет @skbkontur/colors).
 class Brand {
-  static const ink = Color(0xFF141B2D);
-  static const amber = Color(0xFFFFB547);
-  static const amberDeep = Color(0xFFE8930C);
-  static const ok = Color(0xFF1F8A5B);
-  static const bad = Color(0xFFC2362F);
+  /// Основной цвет действий: кнопки, выбранная вкладка (shapeBoldAccent).
+  static const accent = Color(0xFF3D3D3D);
+  static const accentDark = Color(0xFFF2F2F2);
+
+  /// Фирменный красный — только знак и логотип (shapeBoldBrandOriginal).
+  static const red = Color(0xFFFE4C4C);
+
+  /// Статусы для текста и значков: читаются и на светлом, и на тёмном фоне.
+  static const ok = Color(0xFF1C8A3F);
+  static const bad = Color(0xFFCC2626);
+  static const warning = Color(0xFFD26E00);
+
+  /// Заливки статусов: шкалы и метки (shapeBoldSuccess / Error / Warning).
+  static const okFill = Color(0xFF00A948);
+  static const badFill = Color(0xFFF63B40);
+  static const warningFill = Color(0xFFFFBE3D);
+
+  /// Фон и поверхности (surfaceLow / surfaceHigh), светлая и тёмная тема.
+  static const background = Color(0xFFF2F2F2);
+  static const backgroundDark = Color(0xFF1F1F1F);
+  static const surface = Color(0xFFFFFFFF);
+  static const surfaceDark = Color(0xFF333333);
+  static const headerDark = Color(0xFF292929);
+
+  /// Текст (textNeutralHeavy) и тонкие линии (lineNeutralFaint).
+  static const text = Color(0xE0000000);
+  static const textDark = Color(0xF5FFFFFF);
+  static const line = Color(0x14000000);
+  static const lineDark = Color(0x14FFFFFF);
 }
 
 /// Сообщение внизу экрана.
@@ -19,7 +44,7 @@ void toast(BuildContext context, String message, {bool error = false}) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
       content: Text(message),
-      backgroundColor: error ? Brand.bad : null,
+      backgroundColor: error ? Brand.badFill : null,
       behavior: SnackBarBehavior.floating,
     ));
 }
@@ -187,7 +212,7 @@ class Notice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = bad ? Brand.bad : Brand.amberDeep;
+    final color = bad ? Brand.bad : Brand.warning;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(

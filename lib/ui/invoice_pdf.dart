@@ -15,7 +15,7 @@ Future<Uint8List> invoicePdf(Map<String, dynamic> inv, Map<String, dynamic> prof
     bold: await font('NotoSans-Bold'),
     fontFallback: [await font('NotoSansArmenian-Regular'), await font('NotoSansArmenian-Bold')],
   );
-  final muted = PdfColor.fromInt(0xFF5D6475);
+  final muted = PdfColor.fromInt(0xFF757575);
   final small = pw.TextStyle(fontSize: 9, color: muted);
   final items = (inv['items'] as List).cast<Map<String, dynamic>>();
   final paid = inv['status'] == 'PAID';
@@ -50,7 +50,7 @@ Future<Uint8List> invoicePdf(Map<String, dynamic> inv, Map<String, dynamic> prof
           ]),
         ),
         pw.Text(paid ? tr('invs.paid') : tr('inv.waiting'),
-            style: pw.TextStyle(color: paid ? PdfColor.fromInt(0xFF1F8A5B) : muted, fontWeight: pw.FontWeight.bold)),
+            style: pw.TextStyle(color: paid ? PdfColor.fromInt(0xFF1C8A3F) : muted, fontWeight: pw.FontWeight.bold)),
       ]),
       pw.SizedBox(height: 24),
       pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
@@ -80,7 +80,7 @@ Future<Uint8List> invoicePdf(Map<String, dynamic> inv, Map<String, dynamic> prof
         headerDecoration: const pw.BoxDecoration(),
         cellAlignments: {0: pw.Alignment.centerLeft, 2: pw.Alignment.centerRight, 3: pw.Alignment.centerRight, 4: pw.Alignment.centerRight},
         columnWidths: {0: const pw.FixedColumnWidth(24), 1: const pw.FlexColumnWidth(4)},
-        border: pw.TableBorder(horizontalInside: pw.BorderSide(color: PdfColor.fromInt(0xFFE3DFD5))),
+        border: pw.TableBorder(horizontalInside: pw.BorderSide(color: PdfColor.fromInt(0xFFE0E0E0))),
       ),
       pw.SizedBox(height: 16),
       pw.Align(
