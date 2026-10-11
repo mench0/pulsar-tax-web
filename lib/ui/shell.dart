@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/format.dart';
 import '../core/i18n.dart';
+import 'bank_screen.dart';
 import 'common.dart';
 import 'incomes_screen.dart';
 import 'invoices_screen.dart';
@@ -17,6 +18,7 @@ class Shell extends StatelessWidget {
   static const _icons = {
     AppTab.overview: Icons.dashboard_outlined,
     AppTab.incomes: Icons.payments_outlined,
+    AppTab.bank: Icons.account_balance_outlined,
     AppTab.report: Icons.receipt_long_outlined,
     AppTab.invoices: Icons.request_quote_outlined,
     AppTab.settings: Icons.settings_outlined,
@@ -30,6 +32,7 @@ class Shell extends StatelessWidget {
     final body = switch (s.tab) {
       AppTab.overview => const OverviewScreen(),
       AppTab.incomes => const IncomesScreen(),
+      AppTab.bank => const BankScreen(),
       AppTab.report => const ReportScreen(),
       AppTab.invoices => const InvoicesScreen(),
       AppTab.settings => const SettingsScreen(),

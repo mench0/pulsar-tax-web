@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
+import '../core/api.dart';
 import '../core/app_state.dart';
 import '../core/format.dart';
 import 'common.dart';
+import 'reconciliation.dart';
 import 'files.dart';
 import 'incomes_screen.dart' show DateField;
 import 'invoice_pdf.dart';
@@ -15,10 +17,17 @@ class InvoicesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final tr = s.tr;
-    return Loader<List<dynamic>>(
-      load: (s) async => await s.api.get('/api/invoices') as List<dynamic>,
-      builder: (context, list) {
-        final invoices = list.cast<Map<String, dynamic>>();
+    return Loader<(List<dynamic>, Map<String, dynamic>)>(
+      load: (s) async => (
+        await s.api.get('/api/invoices') as List<dynamic>,
+        await s.api.get('/api/reconciliation') as Map<String, dynamic>,
+      ),
+      builder: (context, data) {
+        final invoices = data.$1.cast<Map<String, dynamic>>();
+        final rec = data.$2;
+        final states = {
+          for (final st in (rec['invoices'] as List).cast<Map<String, dynamic>>()) st['id']: st,
+        };
         return AppPage(
           title: tr('invs.title'),
           subtitle: tr('invs.lead'),
@@ -31,6 +40,7 @@ class InvoicesScreen extends StatelessWidget {
           ],
           children: [
             Notice(tr('invs.einvoiceNote')),
+            ReconciliationPanel(rec: rec),
             const _InvoiceForm(),
             Section(title: tr('invs.all'), children: [
               if (invoices.isEmpty) Text(tr('invs.none')),
@@ -46,7 +56,7 @@ class InvoicesScreen extends StatelessWidget {
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(s.fmt.money(inv['total']), style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(width: 8),
-                    StatusChip(paid: inv['status'] == 'PAID'),
+                    PaymentChip(state: states[inv['id']]),
                   ]),
                 ),
             ]),
@@ -90,7 +100,36 @@ Future<bool> markPaid(BuildContext context, int id) async {
     lastDate: DateTime(2100),
   );
   if (picked == null || !context.mounted) return false;
-  final ok = await guarded(context, () => s.api.post('/api/invoices/$id/paid?date=${Fmt.iso(picked)}'));
+  var ok = false;
+  try {
+    await s.api.post('/api/invoices/$id/paid?date=${Fmt.iso(picked)}');
+    ok = true;
+  } on ApiException catch (e) {
+    if (!context.mounted) return false;
+    if (e.status != 409) {
+      toast(context, e.message, error: true);
+      return false;
+    }
+    // Похожая оплата уже учтена (например, из выписки): не записываем доход второй раз без явного решения.
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        content: Text(e.message),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, 'link'), child: Text(s.tr('rec.openSuggestions'))),
+          TextButton(onPressed: () => Navigator.pop(c, 'new'), child: Text(s.tr('rec.newPayment'))),
+        ],
+      ),
+    );
+    if (!context.mounted) return false;
+    if (choice == 'link') {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      s.go(AppTab.invoices);
+      return false;
+    }
+    if (choice != 'new') return false;
+    ok = await guarded(context, () => s.api.post('/api/invoices/$id/paid?date=${Fmt.iso(picked)}&newPayment=true'));
+  }
   if (ok && context.mounted) {
     toast(context, s.tr('invs.paidDone'));
     s.changed();
@@ -257,22 +296,30 @@ class InvoiceScreen extends StatelessWidget {
     final tr = s.tr;
     return Scaffold(
       appBar: AppBar(title: Text(tr('invs.title'))),
-      body: Loader<(Map<String, dynamic>, Map<String, dynamic>)>(
+      body: Loader<(Map<String, dynamic>, Map<String, dynamic>, Map<String, dynamic>)>(
         load: (s) async => (
           await s.api.get('/api/invoices/$id') as Map<String, dynamic>,
           await s.api.get('/api/profile') as Map<String, dynamic>,
+          await s.api.get('/api/reconciliation') as Map<String, dynamic>,
         ),
-        builder: (context, data) => _InvoiceView(inv: data.$1, profile: data.$2),
+        builder: (context, data) => _InvoiceView(
+          inv: data.$1,
+          profile: data.$2,
+          payment: (data.$3['invoices'] as List).cast<Map<String, dynamic>>().where((x) => x['id'] == id).firstOrNull,
+        ),
       ),
     );
   }
 }
 
 class _InvoiceView extends StatefulWidget {
-  const _InvoiceView({required this.inv, required this.profile});
+  const _InvoiceView({required this.inv, required this.profile, this.payment});
 
   final Map<String, dynamic> inv;
   final Map<String, dynamic> profile;
+
+  /// Состояние оплаты по сверке: оплачено, остаток, платежи.
+  final Map<String, dynamic>? payment;
 
   @override
   State<_InvoiceView> createState() => _InvoiceViewState();
@@ -358,8 +405,25 @@ class _InvoiceViewState extends State<_InvoiceView> {
               tr('inv.from', {'date': Fmt.date(inv['date'] as String)}),
               if (inv['dueDate'] != null) tr('inv.payBy', {'date': Fmt.date(inv['dueDate'] as String)}),
             ].join(' · ')),
-            StatusChip(paid: paid, long: true),
+            if (widget.payment == null) StatusChip(paid: paid, long: true) else PaymentChip(state: widget.payment),
           ]),
+          if (widget.payment != null && (widget.payment!['payments'] as List).isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final pm in (widget.payment!['payments'] as List).cast<Map<String, dynamic>>())
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.link),
+                title: Text(tr('rec.allocation', {'amount': s.fmt.money(pm['amount']), 'source': tr('rec.source.${pm['source']}')})),
+                trailing: TextButton(
+                  onPressed: () async {
+                    final ok = await guarded(context, () => s.api.delete('/api/reconciliation/allocations/${pm['id']}'));
+                    if (ok) s.changed();
+                  },
+                  child: Text(tr('rec.unlink')),
+                ),
+              ),
+          ],
           const SizedBox(height: 16),
           Grid(minWidth: 260, children: [
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

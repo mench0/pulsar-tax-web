@@ -157,13 +157,19 @@ void main() {
     await tap(t, find.byKey(const Key('income-add')));
     await settle(t, find.textContaining('100 000'));
 
-    // Импорт выписки: поступление загружается, списание и свой перевод — нет.
+    // Импорт выписки: сервер проверяет строки и предлагает типы. Уверенно — только свой перевод;
+    // поступление по договору пользователь подтверждает сам, аренда уходит на проверку.
     final nav = t.state<NavigatorState>(find.byType(Navigator).first);
     nav.push(MaterialPageRoute<void>(builder: (_) => AppScope(state: state, child: const ImportScreen(initialText: statement))));
     await settle(t, find.byKey(const Key('import-count')));
-    expect(find.textContaining('Будет загружено: 1'), findsOneWidget);
+    expect(find.textContaining('подтвердить сразу: 1 · на проверку: 2'), findsOneWidget);
+    await tap(t, find.descendant(of: find.byKey(const ValueKey('action-1')), matching: find.text('Подтвердить')));
+    await t.pump();
+    expect(find.textContaining('подтвердить сразу: 2 · на проверку: 1'), findsOneWidget);
     await tap(t, find.byKey(const Key('import-submit')));
     await settle(t, find.byKey(const Key('income-amount')));
+    final review = await t.runAsync(() => api.get('/api/bank/transactions?status=NEEDS_REVIEW')) as List<dynamic>;
+    expect(review.single['suggestedKind'], 'EXPENSE'); // аренда ждёт решения и в налог не попала
 
     // Отчёт за 4 квартал 2026: налог 10% с оборота квартала (ручной доход — на сегодня, поэтому сверяем с API),
     // уплата закрывает долг.
@@ -239,6 +245,74 @@ void main() {
     expect(jsonEncode(state.me), contains('wide-$run@example.am'));
   });
 
+  testWidgets('банк, объяснение налога, подготовка отчёта, резерв и сверка', (t) async {
+    if (server == null) {
+      markTestSkipped('нет $jar');
+      return;
+    }
+    t.view.physicalSize = const Size(1440, 1000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final api = Api(base: base, client: client(), tokens: MemoryTokenStore(), tokenAuth: true);
+    await t.runAsync(() => api.signIn('flow-$run@example.am', 'пароль-сценария', register: true, lang: 'ru'));
+    await t.runAsync(() => api.put('/api/profile', {'name': 'ИП Поток', 'tin': '12345678', 'regime': 'TURNOVER', 'activity': 'TRADE'}));
+    // Выписка за 3 квартал: поступление без признаков — на проверку.
+    await t.runAsync(() => api.post('/api/bank/statements', {
+          'fileName': 'q3.csv',
+          'header': ['Дата', 'Сумма', 'Контрагент', 'Назначение'],
+          'rows': [
+            ['15.07.2026', '200000', 'ООО Покупатель', 'перевод'],
+          ],
+          'mapping': {'date': 0, 'dateFormat': 'dd.mm.yyyy', 'amount': 1, 'counterparty': 2, 'desc': 3, 'currency': 'AMD'},
+        }));
+    final state = AppState(api: api);
+    await t.runAsync(state.init);
+    state.setYear(2026);
+    state.go(AppTab.bank);
+    await t.pumpWidget(PulsarApp(state: state));
+    await settle(t, find.textContaining('На проверке: 1'));
+    final tx = (await t.runAsync(() => api.get('/api/bank/transactions?status=NEEDS_REVIEW')) as List).single;
+    await tap(t, find.byKey(Key('review-confirm-${tx['id']}')));
+    await settle(t, find.byKey(const Key('review-empty')));
+
+    // Отчёт за 3 квартал: объяснение расчёта и готовность к подаче.
+    state.go(AppTab.report, period: 3);
+    await settle(t, find.byKey(const Key('calc-accrued')));
+    expect(find.descendant(of: find.byKey(const Key('calc-accrued')), matching: find.text(state.fmt.money(20000))), findsOneWidget);
+    await tap(t, find.textContaining('Применённые правила и основания'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Ставка налога с оборота (торговля): 10%'), findsOneWidget);
+    expect(find.text('офиц. источник'), findsOneWidget); // статус основания ставки
+    await settle(t, find.byKey(const Key('filing-ready')));
+    expect(find.text('Данные готовы к отчёту'), findsOneWidget);
+    await tap(t, find.byKey(const Key('accept-warnings')));
+    await tap(t, find.byKey(const Key('report-prepare')));
+    await settle(t, find.textContaining('Версия 1: готов к подаче'));
+
+    // Резерв на обзоре: начисленный и не уплаченный налог.
+    state.go(AppTab.overview);
+    await settle(t, find.byKey(const Key('reserve-recommended')));
+    expect(t.widget<Text>(find.byKey(const Key('reserve-recommended'))).data, state.fmt.money(20000));
+
+    // Счёт и поступление с тем же номером: сверка предлагает связать.
+    final inv = await t.runAsync(() => api.post('/api/invoices', {
+          'client': 'ООО Покупатель',
+          'date': '2026-08-01',
+          'items': [
+            {'name': 'Товар', 'quantity': 1, 'price': 50000},
+          ],
+        })) as Map<String, dynamic>;
+    await t.runAsync(() => api.post('/api/incomes', {'date': '2026-08-05', 'amount': 50000, 'description': 'оплата ${inv['number']}'}));
+    state.go(AppTab.invoices);
+    state.changed();
+    await settle(t, find.byKey(const Key('rec-totals')));
+    final link = find.byWidgetPredicate((w) => w.key is ValueKey<String> && (w.key as ValueKey<String>).value.startsWith('rec-link-${inv['id']}-'));
+    await tap(t, link);
+    await settle(t, find.text('оплачен'));
+    final rec = await t.runAsync(() => api.get('/api/reconciliation')) as Map<String, dynamic>;
+    expect((rec['invoices'] as List).single['state'], 'PAID');
+  });
+
   testWidgets('бесплатные функции: курс ЦБ, копилка, расходы, запоминание колонок выписки', (t) async {
     if (server == null) {
       markTestSkipped('нет $jar');
@@ -289,11 +363,19 @@ void main() {
         '2026-10-02;Client B;100.00;USD\n';
     final nav = t.state<NavigatorState>(find.byType(Navigator).first);
     nav.push(MaterialPageRoute<void>(builder: (_) => AppScope(state: state, child: const ImportScreen(initialText: usd))));
-    await settle(t, find.byKey(const Key('fill-rates')));
-    await tap(t, find.byKey(const Key('fill-rates')));
-    await settle(t, find.textContaining('Курсы подставлены для строк: 2'));
-    // Пользователь поправил колонку: назначение — вторая.
+    await settle(t, find.byKey(const Key('import-count')));
+    // Курс ЦБ РА на дату каждой строки сервер подставил сам.
+    expect(find.text('курс ЦБ РА'), findsNWidgets(2));
+    // Пользователь поправил колонку: назначение — вторая; строки проверяются заново.
     await choose(t, const Key('map-desc'), 'Description');
+    await settle(t, find.byKey(const Key('import-count')));
+    for (var i = 0; i < 100 && find.byKey(const Key('import-checking')).evaluate().isNotEmpty; i++) {
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    for (final row in [1, 2]) {
+      await tap(t, find.descendant(of: find.byKey(ValueKey('action-$row')), matching: find.text('Подтвердить')));
+    }
     await tap(t, find.byKey(const Key('import-submit')));
     await settle(t, find.byKey(const Key('set-aside'))); // импорт открывали с «Обзора» — туда и вернулись
     final profiles = await t.runAsync(() => api.get('/api/import-profiles')) as Map<String, dynamic>;

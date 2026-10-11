@@ -103,6 +103,16 @@ class Api {
     return me;
   }
 
+  /// Загрузка файла (multipart/form-data, поле file). Возвращает JSON ответа.
+  Future<dynamic> upload(String path, String fileName, List<int> bytes) async {
+    final req = http.MultipartRequest('POST', url(path))
+      ..headers.addAll(await _headers(false))
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+    final res = await http.Response.fromStream(await _client.send(req));
+    _check(res, path);
+    return res.bodyBytes.isEmpty ? null : jsonDecode(utf8.decode(res.bodyBytes));
+  }
+
   /// Файл (CSV, JSON) с сервера.
   Future<Uint8List> bytes(String path) async {
     final res = await _client.get(url(path), headers: await _headers(false));

@@ -5,6 +5,7 @@ import '../core/format.dart';
 import '../core/i18n.dart';
 import 'common.dart';
 import 'import_screen.dart';
+import 'planning.dart';
 
 /// Текст предупреждения из кода и параметров сервера.
 String warningText(Tr tr, Map<String, dynamic> w) {
@@ -132,6 +133,7 @@ class _Overview extends StatelessWidget {
               ),
           ]),
         ]),
+        const PlanningPanel(),
         if ((Fmt.toNum(s['totalIncome']) ?? 0) == 0)
           Section(children: [
             Text(tr('ov.importHint')),
